@@ -3,6 +3,10 @@ import {
   DisconnectReason,
   useMultiFileAuthState,
 } from "@whiskeysockets/baileys";
+import express from 'express';
+
+const app = express();
+const port = process.env.PORT || 3000; 
 
 async function connectToWhatsApp() {
   const { state, saveCreds } = await useMultiFileAuthState("auth_info_baileys"); // this will be called as soon as the credentials are updated
@@ -50,7 +54,7 @@ async function handleMessagesUpsert(messageUpdate, sock) {
   if (!message) return;
 
   const { remoteJid } = key;
-  if(remoteJid !== "120363221844976622@g.us") return;
+  // if(remoteJid !== "120363221844976622@g.us") return;
   const messageText = message?.conversation;
   // console.log("messageUpdate", messageUpdate);
   // console.log("remoteJid", remoteJid);
@@ -119,3 +123,11 @@ async function tagAllExceptOne(remoteJid, sock, excludeId, extraMention) {
   }
 }
 connectToWhatsApp();
+
+app.get('/', (req, res) => {
+  res.send('WhatsApp bot is running');
+});
+
+app.listen(port, () => {
+  console.log(`Server is listening on port ${port}`);
+});

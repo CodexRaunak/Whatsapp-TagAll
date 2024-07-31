@@ -4,7 +4,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start":"node index.js",
+    "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -13,6 +13,7 @@
   "description": "A whatsapp bot using baileys",
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.5",
+    "express": "^4.19.2",
     "qrcode-terminal": "^0.12.0"
   }
 }
