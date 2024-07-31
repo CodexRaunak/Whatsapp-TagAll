@@ -1,0 +1,18 @@
+{
+  "name": "tagall",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start":"node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Raunak",
+  "license": "ISC",
+  "description": "A whatsapp bot using baileys",
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.5",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
