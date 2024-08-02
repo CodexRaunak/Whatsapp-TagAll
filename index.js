@@ -42,11 +42,11 @@ async function connectToWhatsApp() {
 
   sock.ev.on("creds.update", saveCreds);
 
-  sock.ev.on("creds.update", async () => {
-    await saveCreds();
-    const newProfileName = "~Asterin041";
-    await updateProfileName(sock, newProfileName);
-  });
+  // sock.ev.on("creds.update", async () => {
+  //   await saveCreds();
+  //   const newProfileName = "~Asterin041";
+  //   await updateProfileName(sock, newProfileName);
+  // });
 
   //handle incoming messages
   sock.ev.on("messages.upsert", async (messageUpdate) =>
