@@ -80,11 +80,13 @@ async function handleMessagesUpsert(messageUpdate, sock) {
 
   const { remoteJid } = key;
   //  if(remoteJid !== process.env.JINDAGI_JHAND_REMOTEJ_ID) return;
-  const messageText = message?.conversation;
+  const messageText = message.conversation || message.extendedTextMessage?.text;
   // console.log("messageUpdate", messageUpdate);
   // console.log("remoteJid", remoteJid);
   // console.log("messageText", messageText);
-
+  if(!messageText)  {
+    return;
+  };
   if (messageText.includes("!tagAll") || messageText.includes("!TagAll")) {
     await tagAllMembers(remoteJid, sock, key);
   } else if (messageText.includes("!tag") || messageText.includes("!Tag")) {
@@ -125,7 +127,7 @@ async function tagAllMembers(remoteJid, sock, messageKey) {
         participant.id !== myId + "@s.whatsapp.net" &&
         participant.id !== messageKey.participant
     );
-    console.log(filteredParticipants);
+    // console.log(filteredParticipants);
     const mentions = filteredParticipants.map((p) => p.id);
     //join is just joining all the elements of the array seperated by a space
     const mentionText = filteredParticipants
@@ -204,7 +206,7 @@ async function tagAllExceptOne(
         participant.id !== excludeId &&
         participant.id !== messageKey.participant
     );
-    console.log(filteredParticipants);
+    // console.log(filteredParticipants);
     const mentions = filteredParticipants.map((p) => p.id);
     //join is just joining all the elements of the array seperated by a space
     const mentionText =

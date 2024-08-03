@@ -108,7 +108,7 @@ const useMongoDBAuthState = async (collection) => {
             for (const id of Object.keys(data[category])) {
               const value = data[category][id];
               const key = `${category}-${id}`;
-              console.log(id);
+              // console.log(id);
               tasks.push(value ? writeData(value, key) : removeData(key));
             }
           }
