@@ -19,7 +19,7 @@ async function connectToWhatsApp() {
   await mongoClient.connect();
 
   // const { state, saveCreds } = await useMultiFileAuthState("auth_info_baileys"); // this will be called as soon as the credentials are updated
-  const collection = mongoClient.db("Cluster0").collection("auth_info_baileys");
+  const collection = mongoClient.db("Cluster1").collection("auth_info_baileys");
   const { state, saveCreds } = await useMongoDBAuthState(collection);
   const sock = makeWASocket({
     //make connection to whatsapp backend
@@ -84,9 +84,9 @@ async function handleMessagesUpsert(messageUpdate, sock) {
   // console.log("messageUpdate", messageUpdate);
   // console.log("remoteJid", remoteJid);
   // console.log("messageText", messageText);
-  if(!messageText)  {
+  if (!messageText) {
     return;
-  };
+  }
   if (messageText.includes("!tagAll") || messageText.includes("!TagAll")) {
     await tagAllMembers(remoteJid, sock, key);
   } else if (messageText.includes("!tag") || messageText.includes("!Tag")) {
@@ -108,6 +108,7 @@ async function handleMessagesUpsert(messageUpdate, sock) {
   }
   if (
     messageText.includes("Good morning") ||
+    messageText.includes("good morning") ||
     messageText.includes("Good Morning") ||
     messageText.includes("Good night") ||
     messageText.includes("good night") ||
@@ -208,11 +209,13 @@ async function tagAllExceptOne(
     );
     // console.log(filteredParticipants);
     const mentions = filteredParticipants.map((p) => p.id);
+    const addExtraMention =
+      messageKey.participant === excludeId ? "" : extraMention;
     //join is just joining all the elements of the array seperated by a space
     const mentionText =
       filteredParticipants.map((p) => `@${p.id.split("@")[0]}`).join(" ") +
       " " +
-      extraMention;
+      addExtraMention;
     const quotedMessage = {
       key: messageKey,
       message: {
