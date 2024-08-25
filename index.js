@@ -3,9 +3,11 @@ const {
   MessageType,
   MessageOptions,
   Mimetype,
+  useMultiFileAuthState,
 } = require("@whiskeysockets/baileys");
 const { MongoClient } = require("mongodb");
-const useMongoDBAuthState = require("./mongoAuthState.js");
+// const useMongoDBAuthState = require("./mongoAuthState.js");
+const { useMongoDBAuthState } = require("mongo-baileys");
 const { DisconnectReason } = require("@whiskeysockets/baileys");
 const express = require("express");
 require("dotenv").config();
@@ -19,7 +21,7 @@ async function connectToWhatsApp() {
   await mongoClient.connect();
 
   // const { state, saveCreds } = await useMultiFileAuthState("auth_info_baileys"); // this will be called as soon as the credentials are updated
-  const collection = mongoClient.db("Cluster1").collection("auth_info_baileys");
+  const collection = mongoClient.db("Cluster1").collection("authState");
   const { state, saveCreds } = await useMongoDBAuthState(collection);
   const sock = makeWASocket({
     //make connection to whatsapp backend
@@ -120,6 +122,7 @@ async function handleMessagesUpsert(messageUpdate, sock) {
 
 async function tagAllMembers(remoteJid, sock, messageKey) {
   try {
+    if (!messageKey.participant) return;
     const groupMetadata = await sock.groupMetadata(remoteJid);
     const myId = sock.user.id.split(":")[0];
     const participants = groupMetadata.participants;
@@ -157,6 +160,7 @@ async function tagAllMembers(remoteJid, sock, messageKey) {
 
 async function sendTaggedReply(remoteJid, sock, messageKey) {
   try {
+    if (!messageKey.participant) return;
     const responseText = "Yeah! 😃☺️";
     const quotedMessage = {
       key: messageKey,
@@ -198,6 +202,7 @@ async function tagAllExceptOne(
   messageKey
 ) {
   try {
+    if (!messageKey.participant) return;
     const groupMetadata = await sock.groupMetadata(remoteJid);
     const myId = sock.user.id.split(":")[0];
     const participants = groupMetadata.participants;
