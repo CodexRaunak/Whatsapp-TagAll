@@ -4,6 +4,7 @@ const {
   MessageOptions,
   Mimetype,
   useMultiFileAuthState,
+  
 } = require("@whiskeysockets/baileys");
 const { MongoClient } = require("mongodb");
 // const useMongoDBAuthState = require("./mongoAuthState.js");
@@ -33,7 +34,7 @@ async function connectToWhatsApp() {
 
   // const { state, saveCreds } = await useMultiFileAuthState("auth_info_baileys"); // this will be called as soon as the credentials are updated
   const collection = mongoClient.db("Cluster1").collection("authState");
-  const { state, saveCreds } = await useMultiFileAuthState("auth_info_baileys");
+  const { state, saveCreds } = await useMongoDBAuthState(collection);
   const sock = makeWASocket({
     //make connection to whatsapp backend
     // can provide additional config here
@@ -104,6 +105,7 @@ async function handleMessagesUpsert(messageUpdate, sock) {
     }
       //if participant not authorized then enter || if the message is not from me then also enter 
     if (!(authorizedParticipants.includes(key.participant) || key.fromMe)) {
+      if(!key.participant) return;
       // Inform the user if they are not authorized
       const notAuthorizedMessage = "You are not authorized to use this command.";
       await sock.sendMessage(remoteJid, {
@@ -124,7 +126,7 @@ async function handleMessagesUpsert(messageUpdate, sock) {
         console.log("No spam initiator found.");
         return;
       }
-      if (spamInitiatorId === key.participant) {
+      if ( spamInitiatorId === key.participant) {
         stopSpam = true; // Set flag to stop spamming
         console.log("Spam stopped by initiator.");
       } else {
