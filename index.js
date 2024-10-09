@@ -26,6 +26,7 @@ const authorizedParticipants = [
   process.env.SWATI_ID,
   process.env.AADHISHREE_ID,
   process.env.ASTERIN_ID,
+  process.env.RIDHIMA_ID,
 ];
 
 async function connectToWhatsApp() {
@@ -107,10 +108,10 @@ async function handleMessagesUpsert(messageUpdate, sock) {
     if (!(authorizedParticipants.includes(key.participant) || key.fromMe)) {
       if(!key.participant) return;
       // Inform the user if they are not authorized
-      const notAuthorizedMessage = "You are not authorized to use this command.";
-      await sock.sendMessage(remoteJid, {
-        text: notAuthorizedMessage,
-      });
+      // const notAuthorizedMessage = "You are not authorized to use this command.";
+      // await sock.sendMessage(remoteJid, {
+      //   text: notAuthorizedMessage,
+      // });
       return;
     }
 
