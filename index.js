@@ -76,7 +76,7 @@ async function connectToWhatsApp() {
     await saveCreds(); // Save the credentials after loading
     console.log("Credentials saved successfully after download.");
 
-    await delay(2000);
+    await delay(3000);
   }
 
   const { state, saveCreds } = await useMultiFileAuthState(localFolderPath); // this will be called as soon as the credentials are updated
