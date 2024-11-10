@@ -1,17 +1,25 @@
 const makeWASocket = require("@whiskeysockets/baileys").default;
 const {
+  uploadFolder,
+  downloadFolder,
+  initializeFirebase,
+} = require("./firebase.js");
+
+const {
   MessageType,
   MessageOptions,
   Mimetype,
   useMultiFileAuthState,
-  
 } = require("@whiskeysockets/baileys");
-const { MongoClient } = require("mongodb");
+// const { MongoClient } = require("mongodb");
 // const useMongoDBAuthState = require("./mongoAuthState.js");
-const { useMongoDBAuthState } = require("mongo-baileys");
+// const { useMongoDBAuthState } = require("mongo-baileys");
 const { DisconnectReason } = require("@whiskeysockets/baileys");
 const express = require("express");
 require("dotenv").config();
+
+const fs = require("fs");
+const path = require("path");
 
 const app = express();
 const mongoURL = process.env.MONGO_URL;
@@ -29,13 +37,51 @@ const authorizedParticipants = [
   process.env.RIDHIMA_ID,
 ];
 
-async function connectToWhatsApp() {
-  const mongoClient = new MongoClient(mongoURL, {});
-  await mongoClient.connect();
+const localFolderPath = "./auth_info_baileys"; // Path to the local folder you want to sync
+const storageFolderPath = "auth_info_baileys"; // Path in Firebase Storage
 
-  // const { state, saveCreds } = await useMultiFileAuthState("auth_info_baileys"); // this will be called as soon as the credentials are updated
-  const collection = mongoClient.db("Cluster1").collection("authState");
-  const { state, saveCreds } = await useMongoDBAuthState(collection);
+let bucket;
+async function uploadToFirebase(bucket) {
+  try {
+    console.log("Uploading local folder to Firebase...");
+    await uploadFolder(localFolderPath, storageFolderPath, bucket); // Upload the folder
+    console.log("Folder uploaded to Firebase successfully.");
+  } catch (err) {
+    console.error("Error uploading folder:", err);
+  }
+}
+
+async function downloadFromFirebase(bucket) {
+  try {
+    console.log("Downloading folder from Firebase...");
+    await downloadFolder(storageFolderPath, localFolderPath, bucket); // Download the folder
+    console.log("Folder downloaded from Firebase successfully.");
+  } catch (err) {
+    console.error("Error downloading folder:", err);
+  }
+}
+
+async function connectToWhatsApp() {
+  // Wait for Firebase initialization and get the bucket
+  bucket = await initializeFirebase();
+
+  if (fs.existsSync(localFolderPath)) {
+    console.log("Local folder found, proceeding with bot setup...");
+  } else {
+    // If the local folder doesn't exist, download it from Firebase
+    console.log("Local folder not found, downloading from Firebase...");
+    await downloadFromFirebase(bucket);
+
+    const { state, saveCreds } = await useMultiFileAuthState(localFolderPath);
+    await saveCreds(); // Save the credentials after loading
+    console.log("Credentials saved successfully after download.");
+
+    await delay(2000);
+  }
+
+  const { state, saveCreds } = await useMultiFileAuthState(localFolderPath); // this will be called as soon as the credentials are updated
+  // const collection = mongoClient.db("Cluster1").collection("authState");
+  // const { state, saveCreds } = await useMongoDBAuthState(collection);
   const sock = makeWASocket({
     //make connection to whatsapp backend
     // can provide additional config here
@@ -104,9 +150,9 @@ async function handleMessagesUpsert(messageUpdate, sock) {
     if (!messageText) {
       return;
     }
-      //if participant not authorized then enter || if the message is not from me then also enter 
+    //if participant not authorized then enter || if the message is not from me then also enter
     if (!(authorizedParticipants.includes(key.participant) || key.fromMe)) {
-      if(!key.participant) return;
+      if (!key.participant) return;
       // Inform the user if they are not authorized
       // const notAuthorizedMessage = "You are not authorized to use this command.";
       // await sock.sendMessage(remoteJid, {
@@ -114,7 +160,6 @@ async function handleMessagesUpsert(messageUpdate, sock) {
       // });
       return;
     }
-
 
     const myPhone = sock.user.id.split(":")[0];
     const myId = myPhone + "@s.whatsapp.net";
@@ -127,7 +172,7 @@ async function handleMessagesUpsert(messageUpdate, sock) {
         console.log("No spam initiator found.");
         return;
       }
-      if ( spamInitiatorId === key.participant) {
+      if (spamInitiatorId === key.participant) {
         stopSpam = true; // Set flag to stop spamming
         console.log("Spam stopped by initiator.");
       } else {
@@ -148,7 +193,11 @@ async function handleMessagesUpsert(messageUpdate, sock) {
       );
     }
 
-    // console.log("message",message);
+    
+    if (messageText === '@919868129121' ) {
+      await sendTaggedReply(remoteJid, sock, key);
+      return;
+    }
 
     if (mentions.includes(myId)) {
       // const numberPattern = /\s\d+\s/;
@@ -501,7 +550,14 @@ async function tagAllExceptOne(
     console.log("Error tagging all members:", error);
   }
 }
+
 connectToWhatsApp();
+
+// Upload periodically to Firebase (in case the folder keeps getting updated)
+setInterval(async () => {
+  console.log("Periodic upload to Firebase...");
+  await uploadToFirebase(bucket);
+}, 60 * 60 * 1000); // Every hour, or any interval you prefer
 
 app.get("/", (req, res) => {
   res.send("WhatsApp bot is running");
