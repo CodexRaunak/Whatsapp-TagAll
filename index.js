@@ -194,7 +194,7 @@ async function handleMessagesUpsert(messageUpdate, sock) {
     }
 
     
-    if (messageText === '@919868129121' ) {
+    if (messageText === '@' + myPhone ) {
       await sendTaggedReply(remoteJid, sock, key);
       return;
     }
