@@ -16,6 +16,8 @@ const {
 // const { useMongoDBAuthState } = require("mongo-baileys");
 const { DisconnectReason } = require("@whiskeysockets/baileys");
 const express = require("express");
+// const chokidar = require('chokidar');
+
 require("dotenv").config();
 
 const fs = require("fs");
@@ -37,14 +39,16 @@ const authorizedParticipants = [
   process.env.RIDHIMA_ID,
 ];
 
-const localFolderPath = "./auth_info_baileys"; // Path to the local folder you want to sync
-const storageFolderPath = "auth_info_baileys"; // Path in Firebase Storage
+const localFolderPath = path.normalize(
+  path.join(__dirname, "auth_info_baileys")
+); // Path to the local folder you want to sync
+console.log(localFolderPath);
 
 let bucket;
 async function uploadToFirebase(bucket) {
   try {
     console.log("Uploading local folder to Firebase...");
-    await uploadFolder(localFolderPath, storageFolderPath, bucket); // Upload the folder
+    await uploadFolder(localFolderPath, bucket); // Upload the folder
     console.log("Folder uploaded to Firebase successfully.");
   } catch (err) {
     console.error("Error uploading folder:", err);
@@ -54,7 +58,7 @@ async function uploadToFirebase(bucket) {
 async function downloadFromFirebase(bucket) {
   try {
     console.log("Downloading folder from Firebase...");
-    await downloadFolder(storageFolderPath, localFolderPath, bucket); // Download the folder
+    await downloadFolder(localFolderPath, bucket); // Download the folder
     console.log("Folder downloaded from Firebase successfully.");
   } catch (err) {
     console.error("Error downloading folder:", err);
@@ -62,9 +66,8 @@ async function downloadFromFirebase(bucket) {
 }
 
 async function connectToWhatsApp() {
-  // Wait for Firebase initialization and get the bucket
+  //Wait for Firebase initialization and get the bucket
   bucket = await initializeFirebase();
-
   if (fs.existsSync(localFolderPath)) {
     console.log("Local folder found, proceeding with bot setup...");
   } else {
@@ -76,7 +79,17 @@ async function connectToWhatsApp() {
     await saveCreds(); // Save the credentials after loading
     console.log("Credentials saved successfully after download.");
 
-    await delay(2000);
+    await delay(3000);
+  }
+  try {
+    const downloadedFiles = fs
+      .readdirSync(localFolderPath)
+      .map((file) => path.join(localFolderPath, file)) // Combine the full path
+      .map((fullPath) => path.normalize(fullPath)); // Normalize the full path
+
+    console.log("Contents after download:", downloadedFiles);
+  } catch (err) {
+    console.error("Error downloading folder:", err);
   }
 
   const { state, saveCreds } = await useMultiFileAuthState(localFolderPath); // this will be called as soon as the credentials are updated
@@ -193,11 +206,10 @@ async function handleMessagesUpsert(messageUpdate, sock) {
       );
     }
 
-    
-    if (messageText === '@' + myPhone ) {
-      await sendTaggedReply(remoteJid, sock, key);
-      return;
-    }
+    // if (messageText === "@" + myPhone) {
+    //   await sendTaggedReply(remoteJid, sock, key);
+    //   return;
+    // }
 
     if (mentions.includes(myId)) {
       // const numberPattern = /\s\d+\s/;
@@ -206,7 +218,10 @@ async function handleMessagesUpsert(messageUpdate, sock) {
 
       const newMessageText = messageText.replace(`@${myPhone}`, "");
       const extractedTextMatch = newMessageText.match(doubleQuotesPattern);
-
+      if (!extractedTextMatch) {   //case to prevent err if the message is for getting "YEAH"
+        await sendTaggedReply(remoteJid, sock, key);
+        return;
+      }
       if (!extractedTextMatch[1]) {
         extractedTextMatch[1] = extractedTextMatch[0].replaceAll('"', "");
       }
@@ -557,7 +572,22 @@ connectToWhatsApp();
 setInterval(async () => {
   console.log("Periodic upload to Firebase...");
   await uploadToFirebase(bucket);
-}, 60 * 60 * 1000); // Every hour, or any interval you prefer
+}, 60 * 60 * 1000); // Every hour
+
+// if (localFolderPath) {
+
+//   try {
+//     chokidar.watch(localFolderPath, { persistent: true }).on('all', async (event, path) => {
+//       console.log(`Change detected: ${event} on ${path}`);
+
+//       if (['add', 'change'].includes(event)) {
+//         console.log("Triggering upload to Firebase...");
+//         await uploadToFirebase(bucket);
+//       }
+//     }); } catch(error) {
+//     console.log("Error while watching auth_info_baileys: " + error);
+//   }
+// }
 
 app.get("/", (req, res) => {
   res.send("WhatsApp bot is running");

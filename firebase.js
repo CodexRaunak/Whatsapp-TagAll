@@ -28,57 +28,60 @@ const initializeFirebase = async () => {
   };
 
 //
-const uploadFolder = async (folderPath, storageFolder,bucket) => {
-  try {
-    const files = fs.readdirSync(folderPath); // Get all files in the folder
-    files.forEach((file) => {
-      const filePath = path.join(folderPath, file); // Full path to the file
-      const storagePath = path.join(storageFolder, file); // Path in Firebase Storage
-
-      // Upload each file
-      bucket.upload(
-        filePath,
-        {
-          destination: storagePath, // Path in Firebase Storage
-          public: true, // Optional: Make the file publicly accessible
-        },
-        (err, file) => {
-          if (err) {
-            console.log("Error uploading file:", filePath, err);
-          } else {
-            console.log("File uploaded successfully:", file.name);
+const uploadFolder = async (folderPath, bucket) => {
+    try {
+      const files = fs.readdirSync(folderPath); // Get all files in the folder
+      files.forEach((file) => {
+        const filePath = path.join(folderPath, file); // Full path to the file
+  
+        // Upload each file
+        bucket.upload(
+          filePath,
+          {
+            destination: file, // Path in Firebase Storage, just the file name
+            public: true, 
+          },
+          (err, uploadedFile) => {
+            if (err) {
+              console.log("Error uploading file:", filePath, err);
+            } else {
+              console.log("File uploaded successfully:", uploadedFile.name);
+            }
           }
-        }
-      );
-    });
-  } catch (error) {
-    console.log("Error uploading files:", error);
-  }
-};
-
-
-//   uploadFolder('./auth_info_baileys', 'auth_info_baileys');
-
-const downloadFolder = async (storageFolder, localFolder,bucket) => {
-  try {
-    const [files] = await bucket.getFiles({ prefix: storageFolder }); // Get all files in the folder
-
-    files.forEach((file) => {
-      const localFilePath = path.join(localFolder, path.basename(file.name)); // Local path to save the file
-
-      file.download({ destination: localFilePath }, (err) => {
-        if (err) {
-          console.log("Error downloading file:", file.name, err);
-        } else {
-          console.log("File downloaded successfully:", localFilePath);
-        }
+        );
       });
-    });
-  } catch (error) {
-    console.log("Error fetching files:", error);
-  }
-};
+    } catch (error) {
+      console.log("Error uploading files:", error);
+    }
+  };
+// async function upload() {
+//      bucket = await initializeFirebase();
+//     uploadFolder('./auth_info_baileys',bucket);
 
-// downloadFolder("auth_info_baileys", "./auth_info_baileys");
+// }
+
+//  upload();
+
+
+const downloadFolder = async (localFolder, bucket) => {
+    try {
+      const [files] = await bucket.getFiles(); // Get all files
+  
+      files.forEach((file) => {
+        const localFilePath = path.join(localFolder, path.basename(file.name)); // Local path to save the file
+  
+        file.download({ destination: localFilePath }, (err) => {
+          if (err) {
+            console.log("Error downloading file:", file.name, err);
+          } else {
+            console.log("File downloaded successfully:", localFilePath);
+          }
+        });
+      });
+    } catch (error) {
+      console.log("Error fetching files:", error);
+    }
+  };
+
 
 module.exports = { uploadFolder,downloadFolder,initializeFirebase}
