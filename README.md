@@ -10,6 +10,7 @@ Asterin041 can assist with the following commands:
 
 - **Command:** `!tagAll` or `!TagAll`
 - **Description:** Tags all members in the group.
+ ![image tag](https://i.ibb.co/DDz9nH0/IMG-3264.jpg)
 
 ### Good Morning / Good Night Reactions:
 
@@ -19,7 +20,8 @@ Asterin041 can assist with the following commands:
 ### Spam the Group:
 
 - **Command:** `@Asterin041 Spam "<text to spam>" <number>`
-- **Description:** Tag the bot and specify a message in double quotes, along with a number, to spam the group with the provided message.
+- **Description:** Tag the bot and specify a message in double quotes, along with a number, to spam the group with the provided message.\n
+![help](https://i.ibb.co/xHsVPn0/image.png)
 
 ### Stop Spam:
 
@@ -31,7 +33,7 @@ Asterin041 can assist with the following commands:
 - **Command:** `!help`
 - **Description:** It will display all the commands and do they do.
 
-
+![help](https://i.ibb.co/b1fHm73/image.png)
 
 ## Installation
 
