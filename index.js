@@ -218,7 +218,8 @@ async function handleMessagesUpsert(messageUpdate, sock) {
 
       const newMessageText = messageText.replace(`@${myPhone}`, "");
       const extractedTextMatch = newMessageText.match(doubleQuotesPattern);
-      if (!extractedTextMatch) {   //case to prevent err if the message is for getting "YEAH"
+      if (!extractedTextMatch) {
+        //case to prevent err if the message is for getting "YEAH"
         await sendTaggedReply(remoteJid, sock, key);
         return;
       }
@@ -321,17 +322,25 @@ async function spamMessage(
 
     let count = parseInt(extractedNumber);
     for (let i = 0; i < count; i++) {
-      if (stopSpam) {
-        stopSpam = false; // Reset the flag after stopping
-        spamInitiatorId = null; // Reset the initiator ID
-        break;
-      }
+      try {
+        if (stopSpam) {
+          stopSpam = false; // Reset the flag after stopping
+          spamInitiatorId = null; // Reset the initiator ID
+          break;
+        }
 
-      await sock.sendMessage(remoteJid, {
-        text: extractedText,
-        mentions: mentionIds,
-      });
-      await delay(500); // Adding delay between messages
+        await sock.sendMessage(remoteJid, {
+          text: extractedText,
+          mentions: mentionIds,
+        });
+        await delay(500); // Adding delay between messages
+      } catch (error) {
+        console.log("Error while spamming:", error);
+        if (error.data === 429) {
+          console.log("Rate limit hit, pausing for a bit...");
+          await new Promise((resolve) => setTimeout(resolve, 10000)); // 10-second delay before retrying
+        }
+      }
     }
   } catch (error) {
     console.log("Error while spamming:", error);
