@@ -66,8 +66,13 @@ async function downloadFromFirebase(bucket) {
 }
 
 async function connectToWhatsApp() {
-  //Wait for Firebase initialization and get the bucket
-  bucket = await initializeFirebase();
+  try {
+    //Wait for Firebase initialization and get the bucket
+  if(!bucket) {
+    console.log("Bucket not found, initializing");
+    bucket = await initializeFirebase();
+  }  
+
   if (fs.existsSync(localFolderPath)) {
     console.log("Local folder found, proceeding with bot setup...");
   } else {
@@ -81,6 +86,10 @@ async function connectToWhatsApp() {
 
     await delay(3000);
   }
+  } catch (error) {
+   console.log("Error in connectToWhatsApp", error); 
+  }
+  
   try {
     const downloadedFiles = fs
       .readdirSync(localFolderPath)
