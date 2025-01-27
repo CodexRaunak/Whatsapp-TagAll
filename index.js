@@ -1,4 +1,6 @@
 const makeWASocket = require("@whiskeysockets/baileys").default;
+const axios = require("axios");
+
 const {
   uploadFolder,
   downloadFolder,
@@ -582,6 +584,39 @@ async function tagAllExceptOne(
   } catch (error) {
     console.log("Error tagging all members:", error);
   }
+}
+
+const { delay, sendMessage } = require("baileys");
+async function fetchQuotes(){
+  try {
+    const reponse = await axios.get("https://techy-api.vercel.app/api/json");
+    return response.data.message;
+  } catch (e) {
+    console.log("Error fetching quotes", e);
+    return "Unable to fetch quotes, please try again later.";
+  }
+}
+
+async function sendDailyQuote(jid, quotedMessage) {
+  try {
+    const quote = await fetchQuotes();
+    await bucket.sendMessage(jid, { text: quote }, { quoted: message });
+    console.log("Daily quote sent successfully:", quote);
+  } catch (e) {
+    console.log("Error sending daily quote", e);
+  }
+}
+
+function scheduleDailyQuote(jid, quotedMessage) {
+  const schedule = require("node-schedule");
+
+  // Schedule to send the daily quote at 9:00 AM every day
+  schedule.scheduleJob("0 9 * * *", () => {
+    console.log("Sending daily tech quote...");
+    sendDailyQuote(jid, quotedMessage);
+  });
+
+  console.log("Daily quote schedule set up successfully!");
 }
 
 connectToWhatsApp();
