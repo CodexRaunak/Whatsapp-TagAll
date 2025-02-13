@@ -1,6 +1,6 @@
 const makeWASocket = require("@whiskeysockets/baileys").default;
 const axios = require("axios");
-
+const nodeCron = require("node-cron");
 const {
   uploadFolder,
   downloadFolder,
@@ -12,6 +12,7 @@ const {
   MessageOptions,
   Mimetype,
   useMultiFileAuthState,
+  getUrlInfo,
 } = require("@whiskeysockets/baileys");
 // const { MongoClient } = require("mongodb");
 // const useMongoDBAuthState = require("./mongoAuthState.js");
@@ -28,8 +29,10 @@ const path = require("path");
 const app = express();
 const mongoURL = process.env.MONGO_URL;
 const port = process.env.PORT || 3000;
+const MAX_SENT_ARTICLES = 50;
 let stopSpam = false;
 let spamInitiatorId = null;
+let sentArticles = [];
 
 const authorizedParticipants = [
   process.env.SUHANI_ID,
@@ -111,6 +114,7 @@ async function connectToWhatsApp() {
     // can provide additional config here
     printQRInTerminal: true,
     auth: state,
+    generateHighQualityLinkPreview: true,
   });
 
   sock.ev.on("connection.update", (update) =>
@@ -155,6 +159,40 @@ function handleConnectionUpdate(update, sock) {
     }
   } else if (connection == "open") {
     console.log("opened connection");
+    try {
+      nodeCron.schedule("0 11 * * *",  async () => {
+        console.log("Cron job triggered for news!");
+        // Check if socket is open before sending a message
+        if (sock.ws?.readyState === sock.ws.OPEN) {
+          try {
+            await sendDailyNews(sock, process.env.CODE_ON_REMOTEJ_ID);
+            console.log("News sent successfully!");
+          } catch (sendError) {
+            console.error("Error sending message:", sendError);
+          }
+        } else {
+          console.error("Socket is not open. Unable to send message.");
+        }
+      });
+
+      nodeCron.schedule("0 9 * * *",  async () => {
+        console.log("Cron job triggered for quotes!");
+        // Check if socket is open before sending a message
+        if (sock.ws?.readyState === sock.ws.OPEN) {
+          try {
+            await sendDailyQuote(sock, process.env.CODE_ON_REMOTEJ_ID);
+            console.log("Quote sent successfully!");
+          } catch (sendError) {
+            console.error("Error sending message:", sendError);
+          }
+        } else {
+          console.error("Socket is not open. Unable to send message.");
+        }
+      });
+      console.log("Cron job scheduled successfully!");
+    } catch (error) {
+      console.error("Error during cron job setup:", error);
+    }
   }
 }
 
@@ -184,7 +222,7 @@ async function handleMessagesUpsert(messageUpdate, sock) {
       // });
       return;
     }
-
+    
     const myPhone = sock.user.id.split(":")[0];
     const myId = myPhone + "@s.whatsapp.net";
     const mentions =
@@ -586,37 +624,96 @@ async function tagAllExceptOne(
   }
 }
 
-const { delay, sendMessage } = require("baileys");
-async function fetchQuotes(){
+async function fetchNews() {
   try {
-    const reponse = await axios.get("https://techy-api.vercel.app/api/json");
-    return response.data.message;
+    const res = await axios.get(
+      `https://newsapi.org/v2/everything?q=technology+AI&domains=techcrunch.com,thenextweb.com&apiKey=${process.env.NEWS_API_KEY}`
+    );
+    const articles = res.data.articles;
+    let articleToSend = null;
+    for (let article of articles) {
+      if (
+        !sentArticles.find((sentArticle) => sentArticle.url === article.url)
+      ) {
+        articleToSend = article;
+        break;
+      }
+    }
+    if (!articleToSend) {
+      console.log("No new articles to send.");
+      return "No new articles to send.";
+    }
+    console.log("Sending article:", articleToSend.title);
+
+    sentArticles.push({
+      url: articleToSend.url,
+      timestamp: articleToSend.publishedAt,
+    });
+
+    if (sentArticles.length > MAX_SENT_ARTICLES) {
+      sentArticles.shift(); // Remove the oldest article
+    }
+
+    console.log("Sent Articles:", sentArticles);
+    return articleToSend;
   } catch (e) {
-    console.log("Error fetching quotes", e);
-    return "Unable to fetch quotes, please try again later.";
+    console.log("Error fetching news", e);
+    return "Unable to fetch news.";
   }
 }
 
-async function sendDailyQuote(jid, quotedMessage) {
+async function fetchQuotes() {
+    try {
+        const res = await axios.get("https://zenquotes.io/api/today");
+        const quote = res.data[0];
+        const message = `"`  + quote.q + `"` +  " — " + quote.a;
+        console.log("Fetching quote:" + `"`  + quote.q + `"` +  " — " + quote.a);
+        return message;
+    } catch (e) {
+        console.log("Error fetching quote", e);
+        return "Unable to fetch quote.";
+    }
+}
+
+async function sendDailyQuote(sock, jid) {
   try {
     const quote = await fetchQuotes();
-    await bucket.sendMessage(jid, { text: quote }, { quoted: message });
-    console.log("Daily quote sent successfully:", quote);
-  } catch (e) {
-    console.log("Error sending daily quote", e);
+    await sock.sendMessage(jid, { text: quote });
+  } catch (error) {
+    console.log("Error sending daily quote:", error);
   }
 }
 
-function scheduleDailyQuote(jid, quotedMessage) {
-  const schedule = require("node-schedule");
+async function sendDailyNews(sock, jid) {
+  try {
+    const news = await fetchNews();
+    const urlFromText = news.url;
+    const message = news.title + " - " + news.url;
 
-  // Schedule to send the daily quote at 9:00 AM every day
-  schedule.scheduleJob("0 9 * * *", () => {
-    console.log("Sending daily tech quote...");
-    sendDailyQuote(jid, quotedMessage);
+    let linkPreview = null;
+
+  if (urlFromText) {
+    try {
+      // Fetch link preview
+      linkPreview = await getUrlInfo(urlFromText, {
+        thumbnailWidth: 1200,
+        fetchOpts: {
+          timeout: 5000, // 5-second timeout
+        },
+        uploadImage: sock.waUploadToServer,
+      });
+    } catch (error) {
+      console.error("Error fetching link preview:", error);
+    }
+  }
+  await sock.sendMessage(jid, {
+    text: message,
+    linkPreview,
   });
 
-  console.log("Daily quote schedule set up successfully!");
+  } catch (error) {
+    console.log("Error sending daily news:", error);
+  }
 }
 
 connectToWhatsApp();
