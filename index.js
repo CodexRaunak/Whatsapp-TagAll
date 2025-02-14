@@ -114,6 +114,7 @@ async function connectToWhatsApp() {
     // can provide additional config here
     printQRInTerminal: true,
     auth: state,
+    keepAliveIntervalMs: 20000,
     generateHighQualityLinkPreview: true,
   });
 
@@ -166,13 +167,15 @@ function handleConnectionUpdate(update, sock) {
         if (sock.ws?.readyState === sock.ws.OPEN) {
           try {
             await sendDailyNews(sock, process.env.CODE_ON_REMOTEJ_ID);
-            console.log("News sent successfully!");
           } catch (sendError) {
             console.error("Error sending message:", sendError);
           }
         } else {
           console.error("Socket is not open. Unable to send message.");
         }
+      }, {
+        scheduled: true,
+        timezone: "Asia/Kolkata"
       });
 
       nodeCron.schedule("0 9 * * *",  async () => {
@@ -181,13 +184,15 @@ function handleConnectionUpdate(update, sock) {
         if (sock.ws?.readyState === sock.ws.OPEN) {
           try {
             await sendDailyQuote(sock, process.env.CODE_ON_REMOTEJ_ID);
-            console.log("Quote sent successfully!");
           } catch (sendError) {
             console.error("Error sending message:", sendError);
           }
         } else {
           console.error("Socket is not open. Unable to send message.");
         }
+      }, {
+        scheduled: true,
+        timezone: "Asia/Kolkata"
       });
       console.log("Cron job scheduled successfully!");
     } catch (error) {
@@ -678,11 +683,21 @@ async function fetchQuotes() {
 async function sendDailyQuote(sock, jid) {
   try {
     const quote = await fetchQuotes();
+    if (sock.ws?.readyState !== sock.ws.OPEN) {
+      console.error("Socket is not open. Retrying in 5 seconds...");
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+      if (sock.ws?.readyState !== sock.ws.OPEN) {
+        console.error("Socket still not open. Skipping message send.");
+        return;
+      }
+    }
     await sock.sendMessage(jid, { text: quote });
+    console.log("Quote sent successfully!");
   } catch (error) {
-    console.log("Error sending daily quote:", error);
+    console.error("Error sending daily quote:", error);
+    // Optionally, I will add retry logic here if needed 
   }
-}
+};
 
 async function sendDailyNews(sock, jid) {
   try {
@@ -706,14 +721,24 @@ async function sendDailyNews(sock, jid) {
       console.error("Error fetching link preview:", error);
     }
   }
+  if (sock.ws?.readyState !== sock.ws.OPEN) {
+    console.error("Socket is not open. Retrying in 5 seconds...");
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    if (sock.ws?.readyState !== sock.ws.OPEN) {
+      console.error("Socket still not open. Skipping daily news send.");
+      return;
+    }
+  }
+
+  // Send the news message
   await sock.sendMessage(jid, {
     text: message,
     linkPreview,
   });
-
-  } catch (error) {
-    console.log("Error sending daily news:", error);
-  }
+  console.log("News sent successfully!");
+} catch (error) {
+  console.error("Error sending daily news:", error);
+}
 }
 
 connectToWhatsApp();
