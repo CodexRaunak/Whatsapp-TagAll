@@ -115,6 +115,7 @@ async function connectToWhatsApp() {
     printQRInTerminal: true,
     auth: state,
     keepAliveIntervalMs: 20000,
+    defaultQueryTimeoutMs: 0,
     generateHighQualityLinkPreview: true,
   });
 
