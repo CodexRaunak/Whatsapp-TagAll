@@ -765,6 +765,22 @@ setInterval(async () => {
 //   }
 // }
 
+const url = `https://whatsapp-tagall.onrender.com/`; 
+const interval = 30000; // Interval in milliseconds (30 seconds)
+
+function reloadWebsite() {
+  axios.get(url)
+    .then(response => {
+      console.log(`Reloaded at ${new Date().toISOString()}: Status Code ${response.status}`);
+    })
+    .catch(error => {
+      console.error(`Error reloading at ${new Date().toISOString()}:`, error.message);
+    });
+}
+
+
+setInterval(reloadWebsite, interval);
+
 app.get("/", (req, res) => {
   res.send("WhatsApp bot is running");
 });
