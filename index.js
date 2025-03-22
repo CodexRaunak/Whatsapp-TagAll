@@ -731,6 +731,10 @@ async function sendDailyNews(sock, jid) {
     }
   }
 
+  if(!linkPreview) {  // avoid sending the news when no link preview is available
+    console.log("Link preview not available. Skipping news send.");
+    return;
+  }
   // Send the news message
   await sock.sendMessage(jid, {
     text: message,
