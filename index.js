@@ -151,6 +151,8 @@ function handleConnectionUpdate(update, sock) {
   const { connection, lastDisconnect, qr } = update || {};
   if (qr) {
     console.log(qr);
+    const QRCode = require("qrcode-terminal");
+    QRCode.generate(qr, { small: true });
   }
   if (connection === "close") {
     const shouldReconnect =
