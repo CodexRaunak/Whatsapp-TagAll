@@ -41,7 +41,6 @@ const authorizedParticipants = [
   process.env.SWATI_ID,
   process.env.AADHISHREE_ID,
   process.env.ASTERIN_ID,
-  process.env.RIDHIMA_ID,
 ];
 
 const localFolderPath = path.normalize(
@@ -147,7 +146,7 @@ async function connectToWhatsApp() {
   console.log("Connected to WhatsApp");
 }
 
-function handleConnectionUpdate(update, sock) {
+async function handleConnectionUpdate(update, sock) {
   const { connection, lastDisconnect, qr } = update || {};
   if (qr) {
     console.log(qr);
@@ -207,13 +206,47 @@ function handleConnectionUpdate(update, sock) {
 async function handleMessagesUpsert(messageUpdate, sock) {
   try {
     const messageZero = messageUpdate.messages[0];
+    // console.log("New message received:", messageZero);
     const { key, message } = messageZero;
+    // console.log("Message key:", key);
+    // console.log("Message content:", message);
+
+    // --- ID debug prints (helpful to update env vars) ---
+    // try {
+    //   const participantId = key?.participant || null;
+    //   console.log('DEBUG: participantId (raw):', participantId);
+    //   const rawMentions = message.extendedTextMessage?.contextInfo?.mentionedJid || [];
+    //   // Resolve mention display names from socket contact cache when available
+    //   const rawMentionsResolved = rawMentions.map(m => ({
+    //     jid: m,
+    //     name: (sock.contacts && sock.contacts[m] && (sock.contacts[m].notify || sock.contacts[m].name)) || null
+    //   }));
+    //   console.log('DEBUG: raw mentionedJids:', rawMentionsResolved);
+
+    //   // Try to print group participants mapping (id -> name)
+    //   try {
+    //     const gm = await sock.groupMetadata(key.remoteJid);
+    //     const participantList = (gm.participants || []).map(p => ({
+    //       id: p.id,
+    //       name: (sock.contacts && sock.contacts[p.id] && (sock.contacts[p.id].notify || sock.contacts[p.id].name)) || null
+    //     }));
+    //     console.log('DEBUG: group participants (id -> name):', participantList);
+    //   } catch (e) {
+    //     // If not a group or metadata not available, just skip
+    //     console.log('DEBUG: groupMetadata not available or not a group');
+    //   }
+    // } catch (e) {
+    //   console.log('DEBUG: error while printing ids', e);
+    // }
     if (!message) return;
 
     const { remoteJid } = key;
+    // console.log("remoteJid", remoteJid);
     //  if(remoteJid !== process.env.JINDAGI_JHAND_REMOTEJ_ID) return;
     const messageText =
       message.conversation || message.extendedTextMessage?.text;
+    
+    // console.log("Extracted messageText:", messageText);
     // console.log("messageUpdate", messageUpdate);
     // console.log("remoteJid", remoteJid);
     // console.log("messageText", messageText);
@@ -222,6 +255,7 @@ async function handleMessagesUpsert(messageUpdate, sock) {
     }
     //if participant not authorized then enter || if the message is not from me then also enter
     if (!(authorizedParticipants.includes(key.participant) || key.fromMe)) {
+      // console.log("User not authorized:", key.participant);
       if (!key.participant) return;
       // Inform the user if they are not authorized
       // const notAuthorizedMessage = "You are not authorized to use this command.";
@@ -232,7 +266,7 @@ async function handleMessagesUpsert(messageUpdate, sock) {
     }
     
     const myPhone = sock.user.id.split(":")[0];
-    const myId = myPhone + "@s.whatsapp.net";
+    const myId = process.env.ASTERIN_ID;
     const mentions =
       message.extendedTextMessage?.contextInfo?.mentionedJid || [];
     //mentionedJid = ids of all the members that have been tagged in the current message
@@ -252,6 +286,7 @@ async function handleMessagesUpsert(messageUpdate, sock) {
     }
 
     if (messageText.includes("!tagAll") || messageText.includes("!TagAll")) {
+      // console.log("Tagging all members in group:", remoteJid);
       await tagAllMembers(remoteJid, sock, key);
     } else if (messageText.includes("!tag") || messageText.includes("!Tag")) {
       await tagAllExceptOne(
@@ -267,7 +302,7 @@ async function handleMessagesUpsert(messageUpdate, sock) {
     //   await sendTaggedReply(remoteJid, sock, key);
     //   return;
     // }
-
+    // console.log("mentions", mentions, "myId", myId);
     if (mentions.includes(myId)) {
       // const numberPattern = /\s\d+\s/;
 
@@ -275,6 +310,7 @@ async function handleMessagesUpsert(messageUpdate, sock) {
 
       const newMessageText = messageText.replace(`@${myPhone}`, "");
       const extractedTextMatch = newMessageText.match(doubleQuotesPattern);
+      // console.log("extractedTextMatch", extractedTextMatch);
       if (!extractedTextMatch) {
         //case to prevent err if the message is for getting "YEAH"
         await sendTaggedReply(remoteJid, sock, key);
@@ -348,7 +384,7 @@ async function spamMessage(
     console.log("Extracted text:", extractedText);
     spamInitiatorId = messageKey.participant;
     const groupMetadata = await sock.groupMetadata(remoteJid);
-    const myId = `${sock.user.id.split(":")[0]}@s.whatsapp.net`;
+    const myId = process.env.ASTERIN_ID;
     const filteredParticipants = groupMetadata.participants.filter(
       (participant) =>
         participant.id !== myId && participant.id !== messageKey.participant
@@ -365,13 +401,15 @@ async function spamMessage(
     // const sampleMentionText = "@919999999999 @919999999998 @919999999997";
     // const sampleExtractedText = "Hello @91999999999123 @91999999999123 @91999999999123";
 
-    const phoneNumberPattern = /@(\d+)/g;
-    const phoneNumberMatches = [...extractedText.matchAll(phoneNumberPattern)]; //found a @tag in " "
+  // Match @<digits> optionally followed by a domain (e.g. @lid or @s.whatsapp.net)
+  // capture digits in group 1
+  const phoneNumberPattern = /@(\d+)(?:@[a-zA-Z0-9.\-]+)?/g;
+  const phoneNumberMatches = [...extractedText.matchAll(phoneNumberPattern)]; //found a @tag in " "
 
     phoneNumberMatches.forEach((match) => {
       const phoneNumber = match[1]; // Extracted phone number
       if (mentionText.includes(phoneNumber)) {
-        mentionIds.push(`${phoneNumber}@s.whatsapp.net`);
+        mentionIds.push(`${phoneNumber}@lid`);
       }
     });
 
@@ -508,17 +546,24 @@ async function help(remoteJid, sock, messageKey) {
 async function tagAllMembers(remoteJid, sock, messageKey) {
   try {
     if (!messageKey.participant) return;
+    // console.log("Tagging all members in group:", remoteJid);
+    // console.log("messageKey:", messageKey);
     const groupMetadata = await sock.groupMetadata(remoteJid);
-    const myId = sock.user.id.split(":")[0];
+    // console.log("groupMetadata:", groupMetadata);
+    const myId = process.env.ASTERIN_ID;
+    // console.log("myId:", myId);
     const participants = groupMetadata.participants;
+    // console.log("participants:", participants);
     const filteredParticipants = participants.filter(
       (participant) =>
-        participant.id !== myId + "@s.whatsapp.net" &&
+        participant.id !== myId &&
         participant.id !== messageKey.participant
     );
     // console.log(filteredParticipants);
     const mentions = filteredParticipants.map((p) => p.id);
+    // console.log("mentions:", mentions);
     //join is just joining all the elements of the array seperated by a space
+    //logic check now 11th october
     const mentionText = filteredParticipants
       .map((p) => `@${p.id.split("@")[0]}`)
       .join(" ");
@@ -590,11 +635,11 @@ async function tagAllExceptOne(
   try {
     if (!messageKey.participant) return;
     const groupMetadata = await sock.groupMetadata(remoteJid);
-    const myId = sock.user.id.split(":")[0];
+    const myId = process.env.ASTERIN_ID;
     const participants = groupMetadata.participants;
     const filteredParticipants = participants.filter(
       (participant) =>
-        participant.id !== myId + "@s.whatsapp.net" &&
+        participant.id !== myId &&
         participant.id !== excludeId &&
         participant.id !== messageKey.participant
     );
@@ -604,6 +649,7 @@ async function tagAllExceptOne(
     const addExtraMention =
       messageKey.participant === excludeId || !isSuhaniId ? "" : extraMention;
     //join is just joining all the elements of the array seperated by a space
+    //logic check now 11th october
     const mentionText =
       filteredParticipants.map((p) => `@${p.id.split("@")[0]}`).join(" ") +
       " " +
