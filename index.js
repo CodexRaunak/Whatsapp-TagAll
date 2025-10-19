@@ -108,9 +108,11 @@ async function connectToWhatsApp() {
   const { state, saveCreds } = await useMultiFileAuthState(localFolderPath); // this will be called as soon as the credentials are updated
   // const collection = mongoClient.db("Cluster1").collection("authState");
   // const { state, saveCreds } = await useMongoDBAuthState(collection);
+  const WHATSAPP_VERSION = [2, 3000, 1027934701];  // Issue 1939: https://github.com/WhiskeySockets/Baileys/issues/1939
   const sock = makeWASocket({
     //make connection to whatsapp backend
     // can provide additional config here
+    version: WHATSAPP_VERSION,
     printQRInTerminal: true,
     auth: state,
     keepAliveIntervalMs: 20000,
